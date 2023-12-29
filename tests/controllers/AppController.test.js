@@ -1,70 +1,68 @@
-const chai = require('chai');
-const chaiHttp = require('chai-http');
-const sinon = require('sinon');
-const AppController = require('./appController');
-const RedisClient = require('../utils/redis');
-const DBClient = require('../utils/db');
+/* eslint-disable import/no-named-as-default */
+import dbClient from '../../utils/db';
 
-const { expect } = chai;
+describe('+ AppController', () => {
+    before(function (done) {
+    this.timeout(10000);
+    Promise.all([dbClient.usersCollection(), dbClient.filesCollection()])
+        .then(([usersCollection, filesCollection]) => {
+        Promise.all([usersCollection.deleteMany({}), filesCollection.deleteMany({})])
+            .then(() => done())
+            .catch((deleteErr) => done(deleteErr));
+        }).catch((connectErr) => done(connectErr));
+});
 
-chai.use(chaiHttp);
-
-describe('AppController', () => {
-  describe('getStatus', () => {
-    it('should return status with redis and db information', async () => {
-      // Mock the RedisClient and DBClient methods
-      sinon.stub(RedisClient, 'isAlive').returns(true);
-      sinon.stub(DBClient, 'isAlive').returns(true);
-
-      const request = {};
-      const response = {
-        status: (statusCode) => {
-          expect(statusCode).to.equal(200);
-          return {
-            send: (status) => {
-              expect(status).to.deep.equal({
-                redis: true,
-                db: true,
-              });
-            },
-          };
-        },
-      };
-
-      await AppController.getStatus(request, response);
-
-      // Restore the original methods
-      RedisClient.isAlive.restore();
-      DBClient.isAlive.restore();
+describe('+ GET: /status', () => {
+    it('+ Services are online', function (done) {
+        request.get('/status')
+        .expect(200)
+        .end((err, res) => {
+            if (err) {
+            return done(err);
+            }
+            expect(res.body).to.deep.eql({ redis: true, db: true });
+            done();
+        });
     });
-  });
+});
 
-  describe('getStats', () => {
-    it('should return statistics for users and files', async () => {
-      // Mock the DBClient methods
-      sinon.stub(DBClient, 'nbUsers').returns(42);
-      sinon.stub(DBClient, 'nbFiles').returns(100);
-
-      const request = {};
-      const response = {
-        status: (statusCode) => {
-          expect(statusCode).to.equal(200);
-          return {
-            send: (stats) => {
-              expect(stats).to.deep.equal({
-                users: 42,
-                files: 100,
-              });
-            },
-          };
-        },
-      };
-
-      await AppController.getStats(request, response);
-
-      // Restore the original methods
-      DBClient.nbUsers.restore();
-      DBClient.nbFiles.restore();
+describe('+ GET: /stats', () => {
+    it('+ Correct statistics about db collections', function (done) {
+        request.get('/stats')
+        .expect(200)
+        .end((err, res) => {
+            if (err) {
+            return done(err);
+            }
+            expect(res.body).to.deep.eql({ users: 0, files: 0 });
+            done();
+        });
     });
-  });
+
+    it('+ Correct statistics about db collections [alt]', function (done) {
+        this.timeout(10000);
+        Promise.all([dbClient.usersCollection(), dbClient.filesCollection()])
+        .then(([usersCollection, filesCollection]) => {
+            Promise.all([
+            usersCollection.insertMany([{ email: 'john@mail.com' }]),
+            filesCollection.insertMany([
+                { name: 'foo.txt', type: 'file'},
+                {name: 'pic.png', type: 'image' },
+            ])
+            ])
+            .then(() => {
+                request.get('/stats')
+                .expect(200)
+                .end((err, res) => {
+                    if (err) {
+                    return done(err);
+                    }
+                    expect(res.body).to.deep.eql({ users: 1, files: 2 });
+                    done();
+                });
+            })
+            .catch((deleteErr) => done(deleteErr));
+        }).catch((connectErr) => done(connectErr));
+    });
+    });
 });

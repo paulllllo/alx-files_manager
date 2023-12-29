@@ -12,26 +12,26 @@ import redisClient from './redis';
  * @returns {Promise<{_id: ObjectId, email: string, password: string}>}
  */
 export const getUserFromAuthorization = async (req) => {
-    const authorization = req.headers.authorization || null;
+  const authorization = req.headers.authorization || null;
 
-    if (!authorization) {
+  if (!authorization) {
     return null;
-    }
-    const authorizationParts = authorization.split(' ');
+  }
+  const authorizationParts = authorization.split(' ');
 
-    if (authorizationParts.length !== 2 || authorizationParts[0] !== 'Basic') {
+  if (authorizationParts.length !== 2 || authorizationParts[0] !== 'Basic') {
     return null;
-    }
-    const token = Buffer.from(authorizationParts[1], 'base64').toString();
-    const sepPos = token.indexOf(':');
-    const email = token.substring(0, sepPos);
-    const password = token.substring(sepPos + 1);
-    const user = await (await dbClient.usersCollection()).findOne({ email });
+  }
+  const token = Buffer.from(authorizationParts[1], 'base64').toString();
+  const sepPos = token.indexOf(':');
+  const email = token.substring(0, sepPos);
+  const password = token.substring(sepPos + 1);
+  const user = await (await dbClient.usersCollection()).findOne({ email });
 
-    if (!user || sha1(password) !== user.password) {
+  if (!user || sha1(password) !== user.password) {
     return null;
-    }
-    return user;
+  }
+  return user;
 };
 
 /**
@@ -40,21 +40,21 @@ export const getUserFromAuthorization = async (req) => {
  * @returns {Promise<{_id: ObjectId, email: string, password: string}>}
  */
 export const getUserFromXToken = async (req) => {
-    const token = req.headers['x-token'];
+  const token = req.headers['x-token'];
 
-    if (!token) {
+  if (!token) {
     return null;
-    }
-    const userId = await redisClient.get(`auth_${token}`);
-    if (!userId) {
+  }
+  const userId = await redisClient.get(`auth_${token}`);
+  if (!userId) {
     return null;
-    }
-    const user = await (await dbClient.usersCollection())
+  }
+  const user = await (await dbClient.usersCollection())
     .findOne({ _id: new mongoDBCore.BSON.ObjectId(userId) });
-    return user || null;
+  return user || null;
 };
 
 export default {
-    getUserFromAuthorization: async (req) => getUserFromAuthorization(req),
-    getUserFromXToken: async (req) => getUserFromXToken(req),
+  getUserFromAuthorization: async (req) => getUserFromAuthorization(req),
+  getUserFromXToken: async (req) => getUserFromXToken(req),
 };

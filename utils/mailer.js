@@ -21,31 +21,31 @@ const writeFileAsync = promisify(fs.writeFile);
  * @param {getEventsCallback} callback The callback for the authorized client.
  */
 async function getNewToken(oAuth2Client, callback) {
-    const authUrl = oAuth2Client.generateAuthUrl({
+  const authUrl = oAuth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
-    });
-    console.log('Authorize this app by visiting this url:', authUrl);
-    const rl = readline.createInterface({
+  });
+  console.log('Authorize this app by visiting this url:', authUrl);
+  const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    });
-    rl.question('Enter the code from that page here: ', (code) => {
+  });
+  rl.question('Enter the code from that page here: ', (code) => {
     rl.close();
     oAuth2Client.getToken(code, (err, token) => {
-        if (err) {
+      if (err) {
         console.error('Error retrieving access token', err);
         return;
-        }
-        oAuth2Client.setCredentials(token);
-        writeFileAsync(TOKEN_PATH, JSON.stringify(token))
+      }
+      oAuth2Client.setCredentials(token);
+      writeFileAsync(TOKEN_PATH, JSON.stringify(token))
         .then(() => {
-            console.log('Token stored to', TOKEN_PATH);
-            callback(oAuth2Client);
+          console.log('Token stored to', TOKEN_PATH);
+          callback(oAuth2Client);
         })
         .catch((writeErr) => console.error(writeErr));
     });
-    });
+  });
 }
 
 /**
@@ -55,22 +55,22 @@ async function getNewToken(oAuth2Client, callback) {
  * @param {function} callback The callback to call with the authorized client.
  */
 async function authorize(credentials, callback) {
-    const clientSecret = credentials.web.client_secret;
-    const clientId = credentials.web.client_id;
-    const redirectURIs = credentials.web.redirect_uris;
-    const oAuth2Client = new google.auth.OAuth2(
-        clientId,
-        clientSecret,
-        redirectURIs[0],
-    );
-    console.log('Client authorization beginning');
-    // Check if we have previously stored a token.
-    await readFileAsync(TOKEN_PATH)
+  const clientSecret = credentials.web.client_secret;
+  const clientId = credentials.web.client_id;
+  const redirectURIs = credentials.web.redirect_uris;
+  const oAuth2Client = new google.auth.OAuth2(
+    clientId,
+    clientSecret,
+    redirectURIs[0],
+  );
+  console.log('Client authorization beginning');
+  // Check if we have previously stored a token.
+  await readFileAsync(TOKEN_PATH)
     .then((token) => {
-        oAuth2Client.setCredentials(JSON.parse(token));
-        callback(oAuth2Client);
+      oAuth2Client.setCredentials(JSON.parse(token));
+      callback(oAuth2Client);
     }).catch(async () => getNewToken(oAuth2Client, callback));
-    console.log('Client authorization done');
+  console.log('Client authorization done');
 }
 
 /**
@@ -79,73 +79,73 @@ async function authorize(credentials, callback) {
  * @param {gmailV1.Schema$Message} mail The message to send.
  */
 function sendMailService(auth, mail) {
-    const gmail = google.gmail({ version: 'v1', auth });
+  const gmail = google.gmail({ version: 'v1', auth });
 
-    gmail.users.messages.send({
+  gmail.users.messages.send({
     userId: 'me',
     requestBody: mail,
-    }, (err, _res) => {
+  }, (err, _res) => {
     if (err) {
-        console.log(`The API returned an error: ${err.message || err.toString()}`);
-        return;
+      console.log(`The API returned an error: ${err.message || err.toString()}`);
+      return;
     }
     console.log('Message sent successfully');
-    });
+  });
 }
 
 /**
  * Contains routines for mail delivery with GMail.
  */
 export default class Mailer {
-    static checkAuth() {
+  static checkAuth() {
     readFileAsync('credentials.json')
-        .then(async (content) => {
+      .then(async (content) => {
         await authorize(JSON.parse(content), (auth) => {
-            if (auth) {
+          if (auth) {
             console.log('Auth check was successful');
-            }
+          }
         });
-        })
-        .catch((err) => {
+      })
+      .catch((err) => {
         console.log('Error loading client secret file:', err);
-        });
-    }
+      });
+  }
 
-    static buildMessage(dest, subject, message) {
+  static buildMessage(dest, subject, message) {
     const senderEmail = process.env.GMAIL_SENDER;
     const msgData = {
-        type: 'text/html',
-        encoding: 'UTF-8',
-        from: senderEmail,
-        to: [dest],
-        cc: [],
-        bcc: [],
-        replyTo: [],
-        date: new Date(),
-        subject,
-        body: message,
+      type: 'text/html',
+      encoding: 'UTF-8',
+      from: senderEmail,
+      to: [dest],
+      cc: [],
+      bcc: [],
+      replyTo: [],
+      date: new Date(),
+      subject,
+      body: message,
     };
 
     if (!senderEmail) {
-        throw new Error(`Invalid sender: ${senderEmail}`);
+      throw new Error(`Invalid sender: ${senderEmail}`);
     }
     if (mimeMessage.validMimeMessage(msgData)) {
-        const mimeMsg = mimeMessage.createMimeMessage(msgData);
-        return { raw: mimeMsg.toBase64SafeString() };
+      const mimeMsg = mimeMessage.createMimeMessage(msgData);
+      return { raw: mimeMsg.toBase64SafeString() };
     }
     throw new Error('Invalid MIME message');
-    }
+  }
 
-    static sendMail(mail) {
+  static sendMail(mail) {
     readFileAsync('credentials.json')
-        .then(async (content) => {
+      .then(async (content) => {
         await authorize(
-            JSON.parse(content),
-            (auth) => sendMailService(auth, mail),
+          JSON.parse(content),
+          (auth) => sendMailService(auth, mail),
         );
-        })
-        .catch((err) => {
+      })
+      .catch((err) => {
         console.log('Error loading client secret file:', err);
-        });
-    }
+      });
+  }
 }
